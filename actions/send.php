@@ -3,9 +3,9 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
 
-require '/OSPanel/domains/dist/PHPMailer/src/Exception.php';
-require '/OSPanel/domains/dist/PHPMailer/src/PHPMailer.php';
-require '/OSPanel/domains/dist/PHPMailer/src/SMTP.php';
+require '/OSPanel/domains/NetMonitoringAP/PHPMailer/src/Exception.php';
+require '/OSPanel/domains/NetMonitoringAP/PHPMailer/src/PHPMailer.php';
+require '/OSPanel/domains/NetMonitoringAP/PHPMailer/src/SMTP.php';
 
 session_start();
 require_once("dbconn.php");
@@ -40,12 +40,12 @@ if (empty($email)) {
                 $mail->Port       = 80;                                    //TCP port to connect to; use 587 if you have set `SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS`
             
                 //Recipients
-                $mail->setFrom('isip_a.l.kravcov@mpt.ru', 'Muza');
+                $mail->setFrom('isip_a.l.kravcov@mpt.ru', 'Net Monitoring');
                 $mail->addAddress($email);     //Add a recipient
 
                 //Content
                 //$mail->isHTML(true);                                  //Set email format to HTML
-                $mail->Subject = 'Muza';
+                $mail->Subject = 'Net Monitoring';
                 $mail->Body    = 'Ваш код подтверждения: '.$_SESSION['code'];
             
                 $mail->send();

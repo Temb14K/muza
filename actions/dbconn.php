@@ -3,12 +3,11 @@
 $server = "localhost";
 $serverUsername = "root";
 $serverPassword = "";
-$dbname = "muzadb";
+$dbname = "netmonitoring";
 
-$conn = mysqli_connect($server, $serverUsername, $serverPassword, $dbname);
-
-if(!$conn){
+try {
+    $conn = mysqli_connect($server, $serverUsername, $serverPassword, $dbname);
+}
+catch(Throwable) {
     die("CONNECTION FAILED!!!". mysqli_connect_error());
-} else {
-    "Success";
 }

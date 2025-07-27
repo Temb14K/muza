@@ -81,7 +81,13 @@ function checkData($conn, $name, $username, $email, $telnum, $password, $passwor
                                 header('Location: ../reg.php');
                                 return false;
                             } else {
-                                return true;
+                                if (strlen($name) > 180 || strlen($username) > 180 || strlen($email) > 180  || strlen($password) > 180 || strlen($passwordConf) > 180) {
+                                    $_SESSION['article'] = "<article class='err-article'>Превышен допустимый лимит символов</article>";
+                                    header('Location: ../reg.php');
+                                    return false;
+                                } else {
+                                    return true;
+                                }     
                             }
                         }
                     }

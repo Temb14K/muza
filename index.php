@@ -1,275 +1,288 @@
 <?php
 session_start();
+require_once("./actions/dbconn.php");
+if (!isset($_SESSION['isAuthorized']) || $_SESSION['isAuthorized'] != true || $_SESSION['user']['isAdmin'] != 1) {
+header('Location: ./auth.php');
+exit();
+}
+
+$sql = "SELECT id, name, x, y, status FROM switches";
+
+$dropdown_result = $conn->query($sql);
+$edit_result = $conn->query($sql);
+$table_result = $conn->query($sql);
+
+$sql_devices = "SELECT id, ip, x, y, angle, status, switch_id FROM devices";
+$devices_result = $conn->query($sql_devices);
+
+
+if (isset($_POST['edit_device'])) {
+  $id = $_POST['id'];
+  $ip = $_POST['ip'];
+  $switch_id = ($_POST['switch_id'] === "") ? NULL : $_POST['switch_id'];
+
+  $stmt = $conn->prepare("UPDATE devices SET ip = ?, switch_id = ? WHERE id = ?");
+  $stmt->bind_param("sii", $ip, $switch_id, $id);
+
+  if ($stmt->execute()) {
+      $_SESSION['article'] = '<article style="border:solid 2px darkgreen;padding:20px;display:inline-flex;width:80%;background-color: #00800033">Устройство обновлено</article>';
+      header("Location: index.php");
+      exit;
+  } else {
+      echo "Ошибка при обновлении записи: " . $stmt->error;
+  }
+
+  $stmt->close();
+}
+
+if (isset($_POST['edit'])) {
+    $id = $_POST['id'];
+    $name = $_POST['name'];
+
+    $stmt = $conn->prepare("UPDATE switches SET name = ? WHERE id = ?");
+    $stmt->bind_param("si", $name, $id);
+
+    if ($stmt->execute()) {
+        $_SESSION['article'] = '<article style="border:solid 2px darkgreen;padding:20px;display:inline-flex;width:80%;background-color: #00800033 ">Коммутатор обновлен</article>';
+        header("Location: index.php");
+        exit;
+    } else {
+        echo "Ошибка при обновлении записи: " . $stmt->error;
+    }
+
+    $stmt->close();
+}
+
 ?>
 
-<!doctype html>
-<html lang="ru, en">
-  <head>
-    <link rel="icon" href="./favicon/favicon.png" type="image/png">
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Muza</title>
-    <script type="module" crossorigin src="/assets/main-Bm5EvEUd.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/main-g3sUvViC.css">
-  </head>
-  <body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Net Monitoring AP</title>
+  <link rel="stylesheet" crossorigin href="/assets/main-g3sUvViC.css">
+</head>
+<body>
     <header class="header">
-      <div class="header__inner container">
-        <div class="header__inner__top">
-          <a href="index.php" class="header__logo logo">
-            <img 
-            src="./images/logo_hor.png" 
-            alt="Muza" 
-            class="logo__image logo__image_header"
-            loading="lazy">
-          </a>
-          <div class="header__inner__top-items">
-          <? if (@$_SESSION['isAuthorized'] == true) {
-            echo '<button class="submit-button submit-button_small hidden-mobile" type="button">оставить заявку</button>';
-            } else {
-            echo '<a href="auth.php" style="color:white;" class="submit-button submit-button_small hidden-mobile" type="button">оставить заявку</a>';
-          }?>
-          <? if (@$_SESSION['isAuthorized'] == true) {
-            echo '<a href="profile.php" class="header__profile-link menu-link">профиль</a>';
+        <div class="header__inner container">
+          <div class="header__inner__top">
+            <span class="header__logo logo">
+              Net Monitoring AP
+            </span>
+            <? if (@$_SESSION['isAuthorized'] == true) {
+            echo '<a href="./actions/quit.php" class="header__profile-link menu-link">выйти</a>';
             } else {
               echo '<a href="auth.php" class="header__profile-link menu-link">войти</a>';
             }?>
-          <div class="header__burger visible-mobile">
-            <span></span>
-          </div>
           </div>
         </div>
-        <div class="header__inner__bottom">
-          <nav class="header__menu">
-            <ul class="header__menu-items">
-              <li class="header__menu-item"><a href="studio.php" class="menu-link">аренда студии</a></li>
-              <li class="header__menu-item"><a href="equipment.php" class="menu-link">аренда оборудования</a></li>
-              <li class="header__menu-item"><a href="about.php" class="menu-link">о нас</a></li>
-              <li class="header__menu-item"><a href="blog.php" class="menu-link">блог</a></li>
-              <li class="header__menu-item"><a href="contacts.php" class="menu-link">контакты</a></li>
-            </ul>
-          </nav>
-        </div>
-      </div>
     </header>
+    <?if (@$_SESSION['article']) {
+      echo $_SESSION['article'];
+      unset($_SESSION['article']);
+    } ?>
+    <h2>Управление устройствами</h2>
 
-    <section class="submit-section">
-      <div class="submit-section__inner container">
-      <h1 class="submit-section__title">Муза. Твое вдохновение <br><b  class="submit-section__title_b">здесь.</b></h1>
-      <? if (@$_SESSION['isAuthorized'] == true) {
-            echo '<button class="submit-button submit-button_large">оставить заявку</button>';
-            } else {
-              echo '<a href="auth.php" style="color:white;" class="submit-button submit-button_large">оставить заявку</a>';
-            }?>
-      </div>
-    </section>
+    <table border="2">
+      <tr>
+        <th>ID</th>
+        <th>IP</th>
+        <th>Координаты (X, Y)</th>
+        <th>Угол</th>
+        <th>Статус</th>
+        <th>Switch ID</th>
+        <th>Действия</th>
+      </tr>
 
-    <section class="slider-section slider-section_desktop hidden-tablet">
-      <div class="slider-section__inner container">
-        <span class="section-path">главная <span class="section-path_colored">/ студия А</span></span>
-        <div class="slider slider_desktop">
-					<div class="slider__line slider__line_desktop">
-						<img class="slider__img slider__img_desktop slider__img_first slider__img_first_desktop" src="./images/sliderpic1.jpg" alt="">
-						<img class="slider__img slider__img_desktop slider__img_second slider__img_second_desktop" src="./images/sliderpic2.jpg" alt="">
-						<img class="slider__img slider__img_desktop slider__img_third slider__img_third_desktop" src="./images/sliderpic3.jpg" alt="">
-					</div>
-				</div>
-        <div class="slider-buttons">
-				  <button class="slider-button slider-button_first slider-button_first_desktop"></button>
-				  <button class="slider-button slider-button_second slider-button_second_desktop"></button>
-				  <button class="slider-button slider-button_third slider-button_third_desktop"></button>
-        </div>
-        <hr class="orange-line">
-        <div class="slider-ps slider-ps_desktop">
-          <div class="slider-ps__line slider-ps__line_desktop">
-            <span class="slider__p slider__p_desktop slider__p_first">
-              <h2>Студия А</h2>
-              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod</p>
-            </span>
-            <span class="slider__p slider__p_desktop slider__p_second">
-              <h2>Оборудование</h2>
-              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod</p></span>
-            <span class="slider__p slider__p_desktop slider__p_third">
-              <h2>Запись</h2>
-              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod</p>
-            </span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="slider-section slider-section_tablet visible-tablet hidden-mobile">
-      <div class="slider-section__inner container">
-        <span class="section-path">главная <span class="section-path_colored">/ студия А</span></span>
-        <div class="slider slider_tablet">
-					<div class="slider__line slider__line_tablet">
-						<img class="slider__img slider__img_tablet slider__img_first slider__img_first_tablet" src="./images/sliderpic1.jpg" alt="">
-						<img class="slider__img slider__img_tablet slider__img_second slider__img_second_tablet" src="./images/sliderpic2.jpg" alt="">
-						<img class="slider__img slider__img_tablet slider__img_third slider__img_third_tablet" src="./images/sliderpic3.jpg" alt="">
-					</div>
-				</div>
-        <div class="slider-buttons">
-				  <button class="slider-button slider-button_first slider-button_first_tablet"></button>
-				  <button class="slider-button slider-button_second slider-button_second_tablet"></button>
-				  <button class="slider-button slider-button_third slider-button_third_tablet"></button>
-        </div>
-        <hr class="orange-line">
-        <div class="slider-ps slider-ps_tablet">
-          <div class="slider-ps__line slider-ps__line_tablet">
-            <span class="slider__p slider__p_tablet slider__p_first">
-              <h2>Студия А</h2>
-              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod</p>
-            </span>
-            <span class="slider__p slider__p_tablet slider__p_second">
-              <h2>Оборудование</h2>
-              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod</p></span>
-            <span class="slider__p slider__p_tablet slider__p_third">
-              <h2>Запись</h2>
-              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod</p>
-            </span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="slider-section slider-section_mobile visible-mobile">
-      <div class="slider-section__inner container">
-        <span class="section-path">главная <span class="section-path_colored">/ студия А</span></span>
-        <div class="slider slider_mobile">
-					<div class="slider__line slider__line_mobile">
-						<img class="slider__img slider__img_mobile slider__img_first slider__img_first_mobile" src="./images/sliderpic1.jpg" alt="">
-						<img class="slider__img slider__img_mobile slider__img_second slider__img_second_mobile" src="./images/sliderpic2.jpg" alt="">
-						<img class="slider__img slider__img_mobile slider__img_third slider__img_third_mobile" src="./images/sliderpic3.jpg" alt="">
-					</div>
-				</div>
-        <div class="slider-buttons">
-
-				  <button class="slider-button-arrow slider-button-arrow_prev"><img src="./images/arrow-prev.svg" alt=""></button>
-				  <button class="slider-button slider-button_first slider-button_first_mobile"></button>
-				  <button class="slider-button slider-button_second slider-button_second_mobile"></button>
-				  <button class="slider-button slider-button_third slider-button_third_mobile"></button>
-				  <button class="slider-button-arrow slider-button-arrow_next"><img src="./images/arrow-next.svg" alt=""></button>
-        </div>
-        <hr class="orange-line">
-        <div class="slider-ps slider-ps_mobile">
-          <div class="slider-ps__line slider-ps__line_mobile">
-            <span class="slider__p slider__p_mobile slider__p_first">
-              <h2>Студия А</h2>
-              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod</p>
-            </span>
-            <span class="slider__p slider__p_mobile slider__p_second">
-              <h2>Оборудование</h2>
-              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod</p></span>
-            <span class="slider__p slider__p_mobile slider__p_third">
-              <h2>Запись</h2>
-              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod</p>
-            </span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="time-section">
-      <div class="time-section__inner container">
-        <h1 class="time-section__title">Выбирайте <b>время.</b></h1>
-        <p class="time-section__p">Вы можете забронировать студию без звонков через наше приложение. Просто выберите свободное время.</p>
-        <button class="rent-button rent-button_large">забронировать</button>
-      </div>
-    </section>
-
-    <section class="philosophy-section">
-      <div class="philosophy-section__inner container">
-        <h1 class="philosophy-section__title">Наша <b>философия</b></h1>
-        <p class="philosophy-section__p">Мы занимаемся преобразованием упругих волн в атмосфере в
-          необходимый Вам вид. Для этого, у организации Muza есть все
-          необходимые навыки и инструменты для работы с вашим звуком.
-          Мы сопровождаем артистов с начала пути и до самого конца.
-          Наш принцип — помогать искусству принять форму.</p>
-      </div>
-    </section>
-
-    <section class="examples-section">
-      <div class="examples-section__inner container">
-        <h1 class="examples-section__title">Примеры работ</h1>
-        <div class="examples-items">
-          <div class="examples-items__item"><img class="examples-items__img" src="./images/mediaplaceholder.png" alt=""></div>
-          <div class="examples-items__item"><img class="examples-items__img" src="./images/mediaplaceholder.png" alt=""></div>
-          <div class="examples-items__item"><img class="examples-items__img" src="./images/mediaplaceholder.png" alt=""></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="contacts-section">
-      <div class="contacts-section__inner container">
-        <h1 class="contacts-section__title">Контакты</h1>
-        <div class="contacts-section__wrap">
-          <div class="contact-section__left-side">
-            <p class="contacts-section__left-side__p">muzastudio@yandex.ru<br>
-                                                        +7 (981) 124-23-53<br>
-                                                        +7 (981) 124-54-12<br><br>
-            ООО «Студия саунд дизайна Муза» Адрес: 423250, г. Москва, ул. Вешняковская, вл1к2</p>
-          </div>
-          <div class="contacts-section__right-side">
-            <p class="contacts-section__right-side__p">Схема проезда</p>
-            <img src="./images/map.png" alt="" class="contacts-section__right-side__map">
-          </div>
-        </div>
-      </div>
-    </section>
-    
-    <? if (@$_SESSION['isAuthorized'] == true) {
-            echo '<div class="modal">
-      <div class="modal__body">
-        <div class="modal__content">
-          <div class="modal__header">
-            <p class="modal__title">оставить заявку</p>
-            <a class="modal__close"><img src="./images/popup-close.png" alt=""></a>
-          </div>
-          <form action="./actions/request.php" method="post">
-            <div class="input-div"><input class="text-form text-form_popup" type="text" name="request-title" placeholder="тема заявки"></div>
-            <div class="input-div"><textarea class="text-form text-form_popup text-form_popup_large" name="request-text" placeholder="текст заявки" id=""></textarea></div>
-            <button type="submit" class="auth-button auth-button_confirm">отправить</button>
-          </form>
-        </div>
-      </div>
-    </div>';
-            }
+    <?php
+    if ($devices_result->num_rows > 0) {
+        while ($row = $devices_result->fetch_assoc()) {
+            echo "<tr>
+                    <td>" . $row["id"] . "</td>
+                    <td>" . $row["ip"] . "</td>
+                    <td>" . $row["x"] . ", " . $row["y"] . "</td>
+                    <td>" . $row["angle"] . "</td>
+                    <td>" . $row["status"] . "</td>
+                    <td>" . $row["switch_id"] . "</td>
+                    <td>
+                        <a href='?edit_device_id=" . $row["id"] . "'>Редактировать</a> |
+                        <a href='./actions/deletedevice.php?id=" . $row["id"] . "'>Удалить</a>
+                    </td>
+                  </tr>";
+        }
+    } else {
+        echo "<tr><td colspan='6'>Нет данных</td></tr>";
+    }
     ?>
-    <hr class="white-line">
-    <footer class="footer">
-      <div class="footer__inner container">
-        <div class="footer__inner__left-side">
-          <a href="index.php" class="footer__logo logo">
-            <img 
-            src="./images/logo_sqr.png" 
-            alt="Muza" 
-            class="logo__image logo__image_footer"
-            loading="lazy">
-          </a>
-          <p class="footer__copyright">Muza Studio © 2024<br>Все права защищены</p>
-        </div>
-        <div class="footer__inner__right-side">
-          <div class="footer__buttons">
-            <? if (@$_SESSION['isAuthorized'] == true) {
-            echo '<button class="footer__button submit-button submit-button_small hidden-mobile" type="button">оставить заявку</button>';
-            } else {
-            echo '<a href="auth.php" style="color:white; position:relative; bottom: 40px;" class="footer__button submit-button submit-button_small hidden-mobile" type="button">оставить заявку</a>';
-            }?>
-            <button class="footer__button rent-button rent-button_small hidden-mobile" type="button">забронировать</button>
-          </div>
-          <nav class="footer__menu">
-            <ul class="footer__menu-items">
-              <li class="footer__menu-item"><a href="index.php" class="menu-link">главная</a></li>
-              <li class="footer__menu-item"><a href="studio.php" class="menu-link">аренда студии</a></li>
-              <li class="footer__menu-item"><a href="equipment.php" class="menu-link">аренда оборудования</a></li>
-              <li class="footer__menu-item"><a href="about.php" class="menu-link">о нас</a></li>
-              <li class="footer__menu-item"><a href="blog.php" class="menu-link">блог</a></li>
-              <li class="footer__menu-item"><a href="contacts.php" class="menu-link">контакты</a></li>
-            </ul>
-          </nav>
-        </div>
-      </div>
-    </footer>
-  </body>
-  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    </table>
+
+    <?php
+    if (isset($_GET['edit_device_id'])) {
+        $edit_device_id = $_GET['edit_device_id'];
+
+        $stmt = $conn->prepare("SELECT id, ip, switch_id FROM devices WHERE id = ?");
+        $stmt->bind_param("i", $edit_device_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $device = $result->fetch_assoc();
+
+        if ($device) {
+            ?>
+            <h3>Редактировать устройство</h3>
+            <form method="POST" action="index.php">
+                <input type="hidden" name="id" value="<?php echo $device['id']; ?>">
+                <input type="text" name="ip" value="<?php echo $device['ip']; ?>" required placeholder="IP">
+                <select name="switch_id">
+                    <option value=""<?php echo ($device['switch_id'] === NULL) ? "selected" : ""; ?>>null</option>
+                    <?php
+                    if ($edit_result->num_rows > 0) {
+                        while ($switch = $edit_result->fetch_assoc()) {
+                            $selected = ($switch['id'] == $device['switch_id']) ? "selected" : "";
+                            echo "<option value='" . $switch['id'] . "' $selected>" . $switch['id'] . "</option>";
+                        }
+                    }
+                    ?>
+                </select>
+                <button type="submit" name="edit_device">Сохранить изменения</button>
+            </form>
+            <?php
+        } else {
+            echo "<p>Запись не найдена!</p>";
+        }
+
+        $stmt->close();
+    }
+    ?>
+    <h3>Добавить устройство</h3>
+    <div id="coordinates">
+        X: <span id="x_coord">0</span>, Y: <span id="y_coord">0</span>, Угол: <span id="angle">0</span>
+        <span>
+          <form id="senddata" action="./actions/sendcoords.php" method="post">
+            <input type="text" name="ip" placeholder="IP">
+            <select name="switch_id">
+            <option value="">Выберите ID</option>
+              <?php
+              if ($dropdown_result->num_rows > 0) {
+              while ($row = $dropdown_result->fetch_assoc()) {
+                echo "<option value='" . $row["id"] . "'>" . $row["id"] . "</option>";
+                }
+              }
+                ?>
+            </select>
+            <button type="sumbit">Отправить</button>
+          </form>
+          
+        </span>
+        
+    </div>
+
+    <h2>Управление коммутаторами</h2>
+    <table border="2">
+      <tr>
+        <th>ID</th>
+        <th>Имя</th>
+        <th>Координаты (X, Y)</th>
+        <th>Статус</th>
+        <th>Действия</th>
+      </tr>
+
+    <?php
+    if ($table_result->num_rows > 0) {
+      while($row = $table_result->fetch_assoc()) {
+        echo "<tr>
+                <td>" . $row["id"] . "</td>
+                <td>" . $row["name"] . "</td>
+                <td>" . $row["x"] . ", " . $row["y"] . "</td>
+                <td>" . $row["status"] . "</td>
+                <td>
+                    <a href='?edit_id=" . $row["id"] . "'>Редактировать</a> |
+                    <a href='./actions/deleteswitch.php?id=" . $row["id"] . "'>Удалить</a>
+                </td>
+              </tr>";
+    }
+    } else {
+        echo "<tr><td colspan='4'>Нет данных</td></tr>";
+    }
+    ?>
+    </table>
+    <?php
+    if (isset($_GET['edit_id'])) {
+    $edit_id = $_GET['edit_id'];
+
+    $stmt = $conn->prepare("SELECT id, name FROM switches WHERE id = ?");
+    $stmt->bind_param("i", $edit_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $switch = $result->fetch_assoc();
+
+    if ($switch) {
+        ?>
+        <form method="POST" action="index.php">
+            <input type="hidden" name="id" value="<?php echo $switch['id']; ?>">
+            <input type="text" name="name" value="<?php echo $switch['name']; ?>" required>
+            <button type="submit" name="edit">Сохранить изменения</button>
+        </form>
+        <?php
+    } else {
+        echo "<p>Запись не найдена!</p>";
+    }
+
+    $stmt->close();
+    }
+    ?>
+    <h3>Добавить коммутатор</h3>
+    <div id="coordinates">
+        X: <span id="x_coord_switch">0</span>, Y: <span id="y_coord_switch">0</span>
+        <span>
+          <form id="senddata" action="./actions/addswitch.php" method="post">
+          <input type="text" name="name" placeholder="Имя коммутатора" required>
+          <button type="sumbit">Отправить</button>
+          </form>
+          
+        </span>
+    </div>
+    <div id="map-container" style="position: relative;">
+    <?php
+$devices_result->data_seek(0); // сброс указателя
+while ($device = $devices_result->fetch_assoc()) {
+    $x = (int)$device['x'];
+    $y = (int)$device['y'];
+    $angle = (int)$device['angle'];
+    $status = (int)$device['status'];
+    $coneTop = $y - 40;
+    // Отрисовка cone.svg
+    
+    echo "<img src='./assets/cone.svg' 
+        style='position: absolute; left: {$x}px; top: {$coneTop}px; transform: rotate({$angle}deg); transform-origin: left center; height: 80px;' 
+        alt='cone'>";
+
+    // Отрисовка маркера
+    $marker = $status == 1 ? 'success-marker.svg' : 'fail-marker.svg';
+    echo "<img src='./images/{$marker}' 
+        style='position: absolute; left: {$x}px; top: {$y}px; transform: translate(-50%, -50%); width: 50px; height: 50px;' 
+        alt='marker'>";
+}
+
+// Свитчи
+$table_result->data_seek(0); // сброс указателя
+while ($switch = $table_result->fetch_assoc()) {
+    $x = (int)$switch['x'];
+    $y = (int)$switch['y'];
+    $status = (int)$switch['status'];
+
+    $marker = $status == 1 ? 'success-marker.svg' : 'fail-marker.svg';
+    echo "<img src='./images/{$marker}' 
+        style='position: absolute; left: {$x}px; top: {$y}px; transform: translate(-50%, -50%); width: 50px; height: 50px;' 
+        alt='switch marker'>";
+}
+?>
+    <img id="map" src="./images/map.png?nocache=<?php echo time(); ?>" alt="">
+    </div>
+    <form action="./actions/check_devices.php">
+      <button id="refreshMap">Обновить карту</button>
+    </form>
+</body>
+<script src="assets/map.js?v=1.0"></script>
+
 </html>
